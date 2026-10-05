@@ -22,6 +22,7 @@ const argsSchema = [ // The set of all command line arguments
     ['disable-wait-for-4s', false], // If true, will doesn't wait for the 4S Tix API to be acquired under any circumstantes
     ['disable-rush-gangs', false], // Set to true to disable focusing work-for-faction on Karma until gangs are unlocked
     ['disable-casino', false], // Set to true to disable running the casino.js script automatically
+    ['disable-darknet', false], // Set to true to disable auto-launching the persistent /Tasks/darknet.js crawler
     ['spend-hashes-on-server-hacking-threshold', 0.1], // Threshold for how good hacking multipliers must be to merit spending hashes for boosting hack income. Set to a large number to disable this entirely.
     ['on-completion-script', null], // Spawn this script when we defeat the bitnode
     ['on-completion-script-args', []], // Optional args to pass to the script when we defeat the bitnode
@@ -523,6 +524,11 @@ export async function main(ns) {
                 "--fracH", resetInfo.currentNode == 8 ? 0.001 : 0.1, // Fraction of wealth to keep as cash (10% - unless in BN8)
                 "--reserve", 0, // Override to ignore the global reserve.txt. Any money we reserve can more or less safely live as stocks
             ]);
+
+        // Keep the Bitburner 3.0 darknet crawler alive (persistent like stockmaster.js — it self-waits for TOR/exe).
+        // Duplicate-safe: findScript avoids a second launch here, instanceCount inside darknet.js exits races.
+        if (!findScript('/Tasks/darknet.js') && !options['disable-darknet'] && homeRam >= 32)
+            launchScriptHelper(ns, '/Tasks/darknet.js');
 
         // Launch sleeves and allow them to also ignore the reserve so they can train up to boost gang unlock speed
         if ((10 in unlockedSFs) && (2 in unlockedSFs) && !findScript('sleeve.js')) {
