@@ -22,7 +22,7 @@ const argsSchema = [ // The set of all command line arguments
     ['disable-wait-for-4s', false], // If true, will doesn't wait for the 4S Tix API to be acquired under any circumstantes
     ['disable-rush-gangs', false], // Set to true to disable focusing work-for-faction on Karma until gangs are unlocked
     ['disable-casino', false], // Set to true to disable running the casino.js script automatically
-    ['disable-darknet', false], // Set to true to disable auto-launching the persistent /darknet.js crawler
+    ['disable-darknet', false], // Set to true to never run the persistent darknet.js crawler (blocks autopilot's own launch, relays --disable-script to daemon.js, and terminates any pre-existing instance)
     ['spend-hashes-on-server-hacking-threshold', 0.1], // Threshold for how good hacking multipliers must be to merit spending hashes for boosting hack income. Set to a large number to disable this entirely.
     ['on-completion-script', null], // Spawn this script when we defeat the bitnode
     ['on-completion-script-args', []], // Optional args to pass to the script when we defeat the bitnode
@@ -527,7 +527,13 @@ export async function main(ns) {
 
         // Keep the Bitburner 3.0 darknet crawler alive (persistent like stockmaster.js — it self-waits for TOR/exe).
         // Duplicate-safe: findScript avoids a second launch here, instanceCount inside darknet.js exits races.
-        if (!findScript('darknet.js') && !options['disable-darknet'] && homeRam >= 32)
+        if (options['disable-darknet']) {
+            // Honor --disable-darknet absolutely: kill any instance launched before the flag was set, since
+            // daemon.js only skips disabled helpers - it never terminates one that is already running.
+            const staleDarknet = findScript('darknet.js');
+            if (staleDarknet)
+                await killScript(ns, 'darknet.js', null, staleDarknet);
+        } else if (!findScript('darknet.js') && homeRam >= 32)
             launchScriptHelper(ns, 'darknet.js');
 
         // Launch sleeves and allow them to also ignore the reserve so they can train up to boost gang unlock speed
@@ -641,6 +647,9 @@ export async function main(ns) {
             if (resetInfo.currentNode == 8) daemonArgs.push("--stock-manipulation-focus");
             // Don't run the script to join and manage bladeburner if it is explicitly disabled
             if (options['disable-bladeburner']) daemonArgs.push('--disable-script', getFilePath('bladeburner.js'));
+            // Relay --disable-darknet: daemon.js has its own scheduler entry for the darknet crawler, so without
+            // this it would launch darknet.js on its own once home has enough RAM (>=64GB).
+            if (options['disable-darknet']) daemonArgs.push('--disable-script', getFilePath('darknet.js'));
             // Relay the option to suppress tail windows
             if (options['no-tail-windows']) daemonArgs.push('--no-tail-windows');
             // If we have SF4, but not level 3, instruct daemon.js to reserve additional home RAM
