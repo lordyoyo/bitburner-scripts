@@ -1,13 +1,13 @@
-import { getConfiguration, getFilePath, instanceCount, log, formatMoney, formatRam } from '../helpers.js'
+import {
+    instanceCount, getConfiguration, getFilePath, log,
+    formatMoney, formatRam
+} from './helpers.js'
 
-// NOTE: There is no API that exposes the TOR router cost (game CONSTANTS.TorRouterCost, same value `buy -l`
-// shows in the terminal). TOR_COST_DISPLAY is for reserve math + wait messages only — the purchase itself is
-// programmatic: purchaseTor() returns true/false and the game is the source of truth (tor-manager.js pattern).
-const TOR_COST_DISPLAY = 200e3;
-// Fallback for wait messages before TOR exists: getDarkwebProgramCost() returns -1 without TOR, so we show the
-// standard price (game DarknetConstants.DarkscapeNavigatorPrice) until the live `buy -l` price is queryable.
-const NAVIGATOR_COST_DISPLAY_FALLBACK = 50e6;
+const TOR_COST_DISPLAY = 200e3; //TOR cost needs to be hardcoded because the API doesn't expose the live price (getDarkwebProgramCost() returns -1 without TOR)
+const NAVIGATOR_COST_DISPLAY_FALLBACK = 50e6; //fallback display price for DarkscapeNavigator.exe (live price is via getDarkwebProgramCost() once TOR exists)
 const NAVIGATOR_PROGRAM = 'DarkscapeNavigator.exe';
+
+let options; // Set in main() once we're sure this is the only running instance (house pattern: stockmaster.js, bladeburner.js)
 
 const argsSchema = [
     ['worker', '/Tasks/darknet-worker.js'],
@@ -43,10 +43,9 @@ export function autocomplete(data, args) {
  * when affordable (respecting reserve.txt), and re-checks periodically instead of exiting.
  * @param {NS} ns **/
 export async function main(ns) {
-    const options = getConfiguration(ns, argsSchema);
-    if (!options) return;
-    if (await instanceCount(ns, 'home', false, false) > 1)
-        return log(ns, 'Another instance is already running. Shutting down...');
+    const runOptions = getConfiguration(ns, argsSchema);
+    if (!runOptions || await instanceCount(ns) > 1) return; // Prevent multiple instances of this script from being started, even with different args.
+    options = runOptions; // We don't set the global "options" until we're sure this is the only running instance
     if (options['no-tail-windows']) ns.disableLog('ALL');
     if (!ns.dnet)
         return log(ns, 'ERROR: ns.dnet is unavailable (old game version without Bitburner 3.0 darknet API). Update the game, then rerun.', true, 'error');

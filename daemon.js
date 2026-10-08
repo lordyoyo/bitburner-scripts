@@ -375,8 +375,8 @@ export async function main(ns) {
                     && 7 in dictSourceFiles && bitNodeMults.BladeburnerRank != 0 // Don't run bladeburner in BN's where it can't rank up (currently just BN8)
             },
             {   // Bitburner 3.0 darknet: keep the self-replicating crawler alive on darkweb (needs TOR + DarkscapeNavigator.exe).
-                name: "/Tasks/darknet.js", // House-style launcher (argsSchema + getConfiguration + log); worker/helpers stay dependency-free for tiny darknet RAM.
-                shouldRun: () => reqRam(64) && !options['disable-script'].includes('/Tasks/darknet.js'),
+                name: "darknet.js", // House-style launcher (argsSchema + getConfiguration + log); worker/helpers stay dependency-free for tiny darknet RAM.
+                shouldRun: () => reqRam(64) && !options['disable-script'].includes('darknet.js'),
                 shouldTail: false, // Already covered by daemon tail spam rules; worker logs to its own tail on darkweb.
             },
         ];
